@@ -2,6 +2,9 @@
 import textwrap
 from abc import ABC, abstractclassmethod, abstractproperty
 from datetime import datetime
+from pathlib import Path
+
+ROOT_PATH = Path(__file__).parent
 
 
 class ContasIterador:
@@ -54,7 +57,7 @@ class PessoaFisica(Cliente):
         self.cpf = cpf
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}: ('{self.cpf}')>"
+        return f"<{self.__class__.__name__}: ('{self.nome}', '{self.cpf}')>"
 
 
 class Conta:
@@ -129,8 +132,8 @@ class ContaCorrente(Conta):
 
     def sacar(self, valor):
         numero_saques = len(
-            [transacao for transacao in self.historico.transacoes if
-             transacao["tipo"] == Saque.__name__]
+            [transacao for transacao in self.historico.transacoes
+             if transacao["tipo"] == Saque.__name__]
         )
 
         excedeu_limite = valor > self._limite
@@ -139,7 +142,7 @@ class ContaCorrente(Conta):
         if excedeu_limite:
             print(
                 "\n@@@ Operação falhou! O valor do saque excede o limite. @@@"
-                  )
+                )
 
         elif excedeu_saques:
             print(
@@ -153,7 +156,7 @@ class ContaCorrente(Conta):
 
     def __repr__(self):
         return f"<{self.__class__.__name__}: ('{self.agencia}',\
-        '{self.numero}', '{self.cliente.nome}')>"
+            '{self.numero}', '{self.cliente.nome}')>"
 
     def __str__(self):
         return f"""\
@@ -182,7 +185,7 @@ class Historico:
 
     def gerar_relatorio(self, tipo_transacao=None):
         for transacao in self._transacoes:
-            if tipo_transacao or transacao["tipo"].lower() == tipo_transacao.lower():  # noqa E501
+            if tipo_transacao is None or transacao["tipo"].lower() == tipo_transacao.lower():  # noqa E501
                 yield transacao
 
     def transacoes_do_dia(self):
@@ -240,11 +243,13 @@ class Deposito(Transacao):
 def log_transacao(func):
     def envelope(*args, **kwargs):
         resultado = func(*args, **kwargs)
-        data_hora = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        # TODO: alterar a implementação para salvar em arquivo.
-        # f"[{data_hora}] Função '{func.__name__}' executada com argumentos
-        # {args} e {kwargs}. Retornou {result}\n"
-        print(f"{data_hora}: {func.__name__.upper()}")
+        data_hora = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        with open(ROOT_PATH / "log.txt", "a") as arquivo:
+            arquivo.write(
+                f"[{data_hora}] '{func.__name__}' executada com argumentos:\
+{args} e {kwargs}. "
+                f"Retornou {resultado}\n"
+            )
         return resultado
 
     return envelope
@@ -336,7 +341,7 @@ def exibir_extrato(clientes):
     for transacao in conta.historico.gerar_relatorio():
         tem_transacao = True
         extrato += f"\n{transacao['data']}\n{transacao['tipo']}:\n\t\
-R$ {transacao['valor']:.2f}"
+            R$ {transacao['valor']:.2f}"
 
     if not tem_transacao:
         extrato = "Não foram realizadas movimentações"
@@ -375,7 +380,9 @@ def criar_conta(numero_conta, clientes, contas):
     cliente = filtrar_cliente(cpf, clientes)
 
     if not cliente:
-        print("\n@@@ Cliente não encontrado, criação de conta encerrado! @@@")
+        print(
+            "\n@@@ Cliente não encontrado, criação de conta encerrado! @@@"
+            )
         return
 
     conta = ContaCorrente.nova_conta(cliente=cliente, numero=numero_conta,
@@ -422,7 +429,9 @@ def main():
             break
 
         else:
-            print("\n@@@ Operação inválida, por favor selecione novamente @@@")
+            print(
+                "\n@@@ Operação inválida, por favor selecione novamente. @@@"
+                )
 
 
 main()
